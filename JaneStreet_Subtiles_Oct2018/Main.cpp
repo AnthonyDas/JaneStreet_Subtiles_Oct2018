@@ -1,212 +1,11 @@
 #include <iostream>
-#include <iomanip>
 #include <vector>
 #include <set>
-#include <algorithm> // min, max, sort
-#include <sstream>
+#include <algorithm> // min, max
+#include "gridUtility.h"
 
-#include "logger.h"
-
-void print_grid(const std::vector<std::vector<int> > &grid) {
-	std::ostringstream s;
-	s << std::endl;
-	for (int i = 0; i < grid.size(); ++i) {
-		for (int j = 0; j < grid[i].size(); ++j) {
-			// s << std::setw(3) << std::setfill(' ') << grid[i][j] << " ";
-			s << std::setw(2) << std::setfill('0') << grid[i][j] << " ";
-		}
-		s << std::endl;
-	}
-	s << std::endl;
-	LOG_INF(s.str());
-}
-
-int count(const std::vector<std::vector<int> > &grid, const int &val) {
-	int total_count = 0;
-	for (int i = 0; i < grid.size(); ++i) {
-		for (int j = 0; j < grid.front().size(); ++j) {
-			if (grid[i][j] == val) {
-				++total_count;
-			}
-		}
-	}
-	return total_count;
-}
-
-
-void min_distance(std::vector<std::vector<int> > &grid, const int &i, const int &j, const int &val, const int &dist) {
-	if (grid[i][j] > 0 && grid[i][j] != val) {
-		return;
-	}
-	else if (grid[i][j] == 0 || grid[i][j] == val) {
-		grid[i][j] = dist;
-	}
-	else { // grid[i][j]  < 0
-		if (dist > grid[i][j]) {
-			grid[i][j] = dist;
-		}
-		else {
-			return;
-		}
-	}
-
-	if (i > 0) {
-		min_distance(grid, (i - 1), j, val, (dist - 1));
-	}
-	if (i < grid.size() - 1) {
-		min_distance(grid, (i + 1), j, val, (dist - 1));
-	}
-	if (j > 0) {
-		min_distance(grid, i, (j - 1), val, (dist - 1));
-	}
-	if (j < grid.front().size() - 1) {
-		min_distance(grid, i, (j + 1), val, (dist - 1));
-	}
-}
-
-bool connection_possible(const std::vector<std::vector<int> > &grid, const int &val) {
-	std::vector<std::pair<int, int> > locs;
-	for (int i = 0; i < grid.size(); ++i) {
-		for (int j = 0; j < grid.front().size(); ++j) {
-			if (grid[i][j] == val) {
-				locs.push_back(std::pair<int, int>(i, j));
-			}
-		}
-	}
-
-	for (int n = 0; n < locs.size(); ++n) {
-		std::vector<std::vector<int> > copy(grid);
-
-		min_distance(copy, locs[n].first, locs[n].second, val, -1);
-		
-		for (int m = 0; m < locs.size(); ++m) {
-			// Every val position must be within val steps away from each other.
-			// Check the distance and check that they are indeed connected.
-			if (copy[locs[m].first][locs[m].second] < -val || copy[locs[m].first][locs[m].second] == val) {
-
-				// print_grid(copy);
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-
-void span(const std::vector<std::vector<int> > &grid, const int &val, int &x_span, int &y_span,
-	int &x_min, int &x_max, int &y_min, int &y_max) {
-
-	x_min = INT_MAX, x_max = 0, y_min = INT_MAX, y_max = 0;
-
-	for (int i = 0; i < grid.size(); ++i) {
-		for (int j = 0; j < grid[i].size(); ++j) {
-			if (grid[i][j] == val) {
-				x_min = std::min(x_min, j);
-				x_max = std::max(x_max, j);
-
-				y_min = std::min(y_min, i);
-				y_max = std::max(y_max, i);
-			}
-		}
-	}
-
-	x_span = x_max - x_min + 1;
-	y_span = y_max - y_min + 1;
-}
-
-
-void create_test_grid(const std::vector<std::vector<int> > &grid, std::vector<std::vector<int> > &test_grid, const int &val) {
-
-	int x_span, y_span, x_min, x_max, y_min, y_max;
-	span(grid, val, x_span, y_span, x_min, x_max, y_min, y_max);
-
-	std::vector<int> row(x_span, 0);
-	for (int i = 0; i < y_span; ++i) {
-		test_grid.push_back(row);
-	}
-
-	for (int j = 0; j < x_span; ++j) {
-		for (int i = 0; i < y_span; ++i) {
-			if (grid[i + y_min][j + x_min] == val) {
-				test_grid[i][j] = val;
-			}
-			else if (grid[i + y_min][j + x_min] != 0) {
-				test_grid[i][j] = -1;
-			}
-		}
-	}
-
-	// print_grid(test_grid);
-}
-
-void rotate(const std::vector<std::vector<int> > &test_grid, std::vector<std::vector<int> > &rotated) {
-	rotated.clear();
-
-	std::vector<int> row(test_grid.size(), 0);
-	for (int i = 0; i < test_grid.front().size(); ++i) {
-		rotated.push_back(row);
-	}
-
-	for (int i = 0; i < test_grid.size(); ++i) {
-		for (int j = 0; j < test_grid.front().size(); ++j) {
-			rotated[j][test_grid.size() - 1 - i] = test_grid[i][j];
-		}
-	}
-
-	// print_grid(rotated);
-}
-
-void reflect_vertical(std::vector<std::vector<int> > &test_grid, std::vector<std::vector<int> > &reflected) {
-	reflected.clear();
-
-	for (std::vector<std::vector<int> >::reverse_iterator rit = test_grid.rbegin(); rit != test_grid.rend(); ++rit) {
-		reflected.push_back(*rit);
-	}
-
-	// print_grid(reflected);
-}
-
-void reflect_horizontal(std::vector<std::vector<int> > &test_grid, std::vector<std::vector<int> > &reflected) {
-	reflected.clear();
-
-	for (std::vector<std::vector<int> >::iterator it = test_grid.begin(); it != test_grid.end(); ++it) {
-		std::vector<int> row;
-		for (std::vector<int>::reverse_iterator rit = it->rbegin(); rit != it->rend(); ++rit) {
-			row.push_back(*rit);
-		}
-		reflected.push_back(row);
-	}
-
-	// print_grid(reflected);
-}
-
-
-bool is_valid(std::vector<std::vector<int> > &grid, const int &val) {
-
-	int x_span, y_span, x_min, x_max, y_min, y_max;
-	span(grid, val, x_span, y_span, x_min, x_max, y_min, y_max);
-
-	if ((x_span + y_span - 1) > val) {
-		return false;
-	}
-
-	if (count(grid, val) > val) {
-		return false;
-	}
-
-	if (!connection_possible(grid, val)) {
-		return false;
-	}
-
-	return true;
-}
-
-int min_squares(int x_span, int y_span) {
-	return x_span + y_span - 1;
-}
-
-int overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_test, std::set<std::vector<std::vector<int> > > &sols, const bool &log = false) {
+// Main processing function
+size_t recursive_overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_test, std::set<std::vector<std::vector<int> > > &sols, const bool &log = false) {
 	if (val == val_test) {
 		throw std::logic_error("val and val_test the same");
 	}
@@ -238,13 +37,13 @@ int overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_
 		}
 
 		if (log) {
-			LOG_INF("Rotation/Reflection ", rot, "\n");
+			std::cout << "Rotation/Reflection " << rot << std::endl;
 			print_grid(test_temp);
 		}
 
 		// Check that this test grid isn't a duplicate of an earlier test.
 		// Possible due to rotational/reflectional symmetry.
-		int test_size = tests.size();
+		size_t test_size = tests.size();
 		tests.insert(test_temp);
 		if (test_size == tests.size()) {
 			continue;
@@ -256,16 +55,16 @@ int overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_
 		}
 
 		// Grid offsets
-		for (int gi = 0; gi < grid.size() - test_temp.size() + 1; ++gi) {
-			for (int gj = 0; gj < grid.front().size() - test_temp.front().size() + 1; ++gj) {
+		for (size_t gi = 0; gi < grid.size() - test_temp.size() + 1; ++gi) {
+			for (size_t gj = 0; gj < grid.front().size() - test_temp.front().size() + 1; ++gj) {
 
 				bool valid = true;
 				int count = 0;
 				std::vector<std::vector<int> > grid_temp(grid);
 
 				// Test grid
-				for (int ti = 0; ti < test_temp.size(); ++ti) {
-					for (int tj = 0; tj < test_temp.front().size(); ++tj) {
+				for (size_t ti = 0; ti < test_temp.size(); ++ti) {
+					for (size_t tj = 0; tj < test_temp.front().size(); ++tj) {
 
 						if (val > val_test) {
 							// Every tile in the test grid must be in the main grid
@@ -321,33 +120,33 @@ int overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_
 				}
 				if (valid && (val > val_test)) {
 					// Can we overlay back the other way
-					valid = overlay(grid_temp, val_test, val, sols) > 0;
+					valid = recursive_overlay(grid_temp, val_test, val, sols) > 0;
 				}
 				/*if (valid && (val < val_test) && (val_test > 14)) {
-					valid = overlay(grid_temp, val - 1, val_test - 1) > 0;
+					valid = recursive_overlay(grid_temp, val - 1, val_test - 1) > 0;
 				}*/
 
 				if (valid && (val > val_test) && (val < 17)) {
-					valid = overlay(grid_temp, val + 1, val_test + 1, sols) > 0;
+					valid = recursive_overlay(grid_temp, val + 1, val_test + 1, sols) > 0;
 				}
 				if (valid) {
-					int loc_size = locs.size();
+					size_t loc_size = locs.size();
 					locs.insert(grid_temp);
 
 					if (log && loc_size != locs.size()) {
-						LOG_INF("Possible location found: ", locs.size(), "\n");
+						std::cout << "Possible location found: " << locs.size() << std::endl;
 						print_grid(grid_temp);
-						LOG_INF("\n");
+						std::cout << std::endl;
 					}
 
 					if (val == 17) {
-						int sol_size = sols.size();
+						size_t sol_size = sols.size();
 						sols.insert(grid_temp);
 
 						if (sol_size != sols.size()) {
-							LOG_INF("Possible solution found: ", sols.size(), "\n");
+							std::cout << "Possible solution found: " << sols.size() << std::endl;
 							print_grid(grid_temp);
-							LOG_INF("\n");
+							std::cout << std::endl;
 						}
 					}
 				}
@@ -359,7 +158,7 @@ int overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_
 	if (locs.size() == 1) {
 		grid = *(locs.begin());
 		if (log) {
-			LOG_INF("Only single solution: ", locs.size(), "\n");
+			std::cout << "Only single solution: " << locs.size() << std::endl;
 			print_grid(grid);
 		}
 	}
@@ -368,9 +167,6 @@ int overlay(std::vector<std::vector<int> > grid, const int &val, const int &val_
 }
 
 int main() {
-
-	standard_out_and_file_log_policy policy("JaneStreet_Subtiles.log");
-	logger log(policy);
 
 	std::vector<int> row(13, 0);
 	std::vector<std::vector<int> > grid(13, row);
@@ -396,7 +192,7 @@ int main() {
 	// Must connect existing two 9s this way otherwise would maroon the nearby 15s
 	grid[8][0] = grid[8][1] = grid[9][0] = grid[10][0] = grid[11][0] = 9;
 
-	// overlay(grid, 10, 9, sols, true);
+	// recursive_overlay(grid, 10, 9, sols, true);
 	// Two solutions both of which imply that:
 	grid[1][12] = grid[2][12] = 14;
 	
@@ -439,9 +235,9 @@ int main() {
 
 	std::set<std::vector<std::vector<int> > > sols;
 
-	overlay(grid, 10, 9, sols, true);
+	recursive_overlay(grid, 10, 9, sols, true);
 
-	LOG_INF("Finished - type something to quit\n");
+	std::cout << "Finished - type something to quit" << std::endl;
 	int dummy; std::cin >> dummy;
 	return 0;
 }
